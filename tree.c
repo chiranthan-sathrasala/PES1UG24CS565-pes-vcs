@@ -200,6 +200,14 @@ static int write_tree_level(IndexEntry *entries, int count, int name_offset, Obj
             i = j; // Move to the next group of entries
         }
     }
+    // Convert your populated Tree struct into a binary buffer
+    void *tree_data;
+    size_t tree_len;
+    if (tree_serialize(&tree, &tree_data, &tree_len) != 0) return -1;
+
+    // Save that binary buffer to the store as OBJ_TREE
+    int res = object_write(OBJ_TREE, tree_data, tree_len, out_id);
+    free(tree_data);
     
-    return -1; // Temporary return
+    return res;
 }
