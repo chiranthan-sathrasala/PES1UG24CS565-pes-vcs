@@ -187,10 +187,15 @@ int index_save(const Index *index) {
                 (unsigned long long)sorted_index.entries[i].size,
                 sorted_index.entries[i].path);
     }
-    
-    // Cleanup temporary file for now until next commit
+    // Flush userspace buffers and sync to disk atomically
+    fflush(f);
+    fsync(fileno(f));
     fclose(f);
-    unlink(temp_path);
-    return -1;
+
+    if (rename(temp_path, ".pes/index") < 0) {
+        unlink(temp_path);
+        return -1;
+    }
+    return 0;
 }
 int index_add(Index *index, const char *path) { return -1; }
