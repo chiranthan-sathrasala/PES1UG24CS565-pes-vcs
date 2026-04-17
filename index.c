@@ -198,4 +198,41 @@ int index_save(const Index *index) {
     }
     return 0;
 }
-int index_add(Index *index, const char *path) { return -1; }
+// Stage a file for the next commit.
+//
+// HINTS - Useful functions and syscalls:
+//   - fopen, fread, fclose             : reading the target file's contents
+//   - object_write                     : saving the contents as OBJ_BLOB
+//   - stat / lstat                     : getting file metadata (size, mtime, mode)
+//   - index_find                       : checking if the file is already staged
+//
+// Returns 0 on success, -1 on error.
+int index_add(Index *index, const char *path) {
+    // 1. Read the target file's contents
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        fprintf(stderr, "error: could not open '%s'\n", path);
+        return -1;
+    }
+    
+    fseek(f, 0, SEEK_END);
+    long file_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    unsigned char *data = malloc(file_size);
+    if (!data) { fclose(f); return -1; }
+    
+    if (file_size > 0 && fread(data, 1, file_size, f) != (size_t)file_size) {
+        free(data); fclose(f); return -1;
+    }
+    fclose(f);
+
+    // 2. Save the contents as OBJ_BLOB
+    ObjectID id;
+    if (object_write(OBJ_BLOB, data, file_size, &id) != 0) {
+        free(data); return -1;
+    }
+    free(data);
+
+    return -1; // Temporary return
+}
