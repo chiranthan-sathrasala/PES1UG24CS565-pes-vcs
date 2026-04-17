@@ -116,6 +116,9 @@ int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
 
 // ─── TODO: Implement these ──────────────────────────────────────────────────
 
+// Recursive helper function prototype
+static int write_tree_level(IndexEntry *entries, int count, int name_offset, ObjectID *out_id);
+
 // Build a tree hierarchy from the current index and write all tree
 // objects to the object store.
 //
@@ -130,8 +133,38 @@ int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
 //
 // Returns 0 on success, -1 on error.
 int tree_from_index(ObjectID *id_out) {
-    // TODO: Implement recursive tree building
-    // (See Lab Appendix for logical steps)
-    (void)id_out;
-    return -1;
+    Index idx;
+    
+    // Load the staged files into memory
+    if (index_load(&idx) != 0) return -1;
+    if (idx.count == 0) return -1;
+    
+    // Call the recursive helper starting at depth 0
+    return write_tree_level(idx.entries, idx.count, 0, id_out);
+}
+
+static int write_tree_level(IndexEntry *entries, int count, int name_offset, ObjectID *out_id) {
+    Tree tree;
+    tree.count = 0;
+    int i = 0;
+
+    while (i < count && tree.count < MAX_TREE_ENTRIES) {
+        // Find the first '/' in a path to separate directories from files
+        const char *rel_path = entries[i].path + name_offset;
+        char *slash = strchr(rel_path, '/');
+
+        if (!slash) {
+            // It is a flat file at this level. Add directly to tree.
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = entries[i].mode;
+            strcpy(te->name, rel_path);
+            te->hash = entries[i].hash;
+            i++;
+        } else {
+            // Directory grouping logic goes here
+            i++; // Temporary increment to avoid infinite loop
+        }
+    }
+    
+    return -1; // Temporary return
 }
