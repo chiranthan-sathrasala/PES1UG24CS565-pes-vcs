@@ -150,5 +150,47 @@ int index_load(Index *index) {
     return 0;
 }
 
-int index_save(const Index *index) { return -1; }
+// Helper for qsort to sort index entries alphabetically by path
+static int compare_index_entries(const void *a, const void *b) {
+    return strcmp(((const IndexEntry *)a)->path, ((const IndexEntry *)b)->path);
+}
+
+// Save the index to .pes/index atomically.
+//
+// HINTS - Useful functions and syscalls:
+//   - qsort                            : sorting the entries array by path
+//   - fopen (with "w"), fprintf        : writing to the temporary file
+//   - hash_to_hex                      : converting ObjectID for text output
+//   - fflush, fileno, fsync, fclose    : flushing userspace buffers and syncing to disk
+//   - rename                           : atomically moving the temp file over the old index
+//
+// Returns 0 on success, -1 on error.
+int index_save(const Index *index) {
+    // Create a mutable copy to sort
+    Index sorted_index = *index;
+    qsort(sorted_index.entries, sorted_index.count, sizeof(IndexEntry), compare_index_entries);
+
+    char temp_path[] = ".pes/index.tmp_XXXXXX";
+    int fd = mkstemp(temp_path);
+    if (fd < 0) return -1;
+
+    FILE *f = fdopen(fd, "w");
+    if (!f) { close(fd); unlink(temp_path); return -1; }
+
+    for (int i = 0; i < sorted_index.count; i++) {
+        char hex[HASH_HEX_SIZE + 1];
+        hash_to_hex(&sorted_index.entries[i].hash, hex);
+        fprintf(f, "%06o %s %llu %llu %s\n",
+                sorted_index.entries[i].mode,
+                hex,
+                (unsigned long long)sorted_index.entries[i].mtime_sec,
+                (unsigned long long)sorted_index.entries[i].size,
+                sorted_index.entries[i].path);
+    }
+    
+    // Cleanup temporary file for now until next commit
+    fclose(f);
+    unlink(temp_path);
+    return -1;
+}
 int index_add(Index *index, const char *path) { return -1; }
