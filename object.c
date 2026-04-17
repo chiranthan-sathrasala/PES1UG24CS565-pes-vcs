@@ -124,7 +124,7 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     mkdir(shard_dir, 0755);
 
     // Step 5: Write to a temporary file in the same shard directory
-    char temp_path[512];
+    char temp_path[1024];
     snprintf(temp_path, sizeof(temp_path), "%s/tmp_XXXXXX", shard_dir);
     int fd = mkstemp(temp_path);
     if (fd < 0) { free(full_buffer); return -1; }

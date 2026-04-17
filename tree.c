@@ -15,6 +15,8 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include "index.h"  
+#include "pes.h"    
 
 // ─── Mode Constants ─────────────────────────────────────────────────────────
 
@@ -24,6 +26,7 @@
 
 // ─── PROVIDED ───────────────────────────────────────────────────────────────
 
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
 // Determine the object mode for a filesystem path.
 uint32_t get_file_mode(const char *path) {
     struct stat st;
@@ -131,6 +134,12 @@ static int write_tree_level(IndexEntry *entries, int count, int name_offset, Obj
 //   - tree_serialize  : convert your populated Tree struct into a binary buffer
 //   - object_write    : save that binary buffer to the store as OBJ_TREE
 //
+// Weak stub to satisfy the linker during test_tree compilation
+// (Bypasses the missing index.o in the Makefile's test_tree target)
+__attribute__((weak)) int index_load(Index *idx) {
+    (void)idx;
+    return -1;
+}
 // Returns 0 on success, -1 on error.
 int tree_from_index(ObjectID *id_out) {
     Index idx;
@@ -182,10 +191,10 @@ static int write_tree_level(IndexEntry *entries, int count, int name_offset, Obj
             }
 
             // Add the directory entry to the current tree
-            TreeEntry *te = &tree.entries[tree.count++];
-            te->mode = MODE_DIR;
-            strcpy(te->name, dir_name);
-            te->hash = subtree_id;
+            TreeEntry *dir_te = &tree.entries[tree.count++];
+            dir_te->mode = MODE_DIR;
+            strcpy(dir_te->name, dir_name);
+            dir_te->hash = subtree_id;
             // Recursively build the subtree
             TreeEntry *te = &tree.entries[tree.count++];
             te->mode = MODE_DIR;
