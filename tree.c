@@ -186,7 +186,17 @@ static int write_tree_level(IndexEntry *entries, int count, int name_offset, Obj
             te->mode = MODE_DIR;
             strcpy(te->name, dir_name);
             te->hash = subtree_id;
-
+            // Recursively build the subtree
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = MODE_DIR;
+            strncpy(te->name, rel_path, dir_len);
+            te->name[dir_len] = '\0';
+            
+            // Recursive helper function call
+            if (write_tree_level(&entries[i], j - i, name_offset + dir_len + 1, &te->hash) != 0) {
+                return -1;
+            }
+            
             i = j; // Move to the next group of entries
         }
     }
