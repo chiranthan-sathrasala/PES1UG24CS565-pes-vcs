@@ -192,10 +192,50 @@ int head_update(const ObjectID *new_commit) {
 //   - object_write      : saves the serialized text as OBJ_COMMIT
 //   - head_update       : moves the branch pointer to your new commit
 //
-// Returns 0 on success, -1 on error.
+// Create a new commit from the current staging area.
 int commit_create(const char *message, ObjectID *commit_id_out) {
-    // TODO: Implement commit creation
-    // (See Lab Appendix for logical steps)
-    (void)message; (void)commit_id_out;
-    return -1;
+    Commit new_commit;
+    memset(&new_commit, 0, sizeof(Commit)); // Clear memory
+
+    // 1. Write the directory tree and get the root hash
+    if (tree_from_index(&new_commit.tree) != 0) {
+        fprintf(stderr, "error: failed to build tree from index (is the index empty?)\n");
+        return -1;
+    }
+
+    // 2. Get the parent commit hash (if any)
+    if (head_read(&new_commit.parent) == 0) {
+        new_commit.has_parent = 1;
+    } else {
+        new_commit.has_parent = 0;
+    }
+
+    // 3. Set author, timestamp, and message
+    snprintf(new_commit.author, sizeof(new_commit.author), "%s", pes_author());
+    new_commit.timestamp = (uint64_t)time(NULL);
+    snprintf(new_commit.message, sizeof(new_commit.message), "%s", message);
+
+    // 4. Serialize the commit struct to a text buffer
+    void *commit_data;
+    size_t commit_len;
+    if (commit_serialize(&new_commit, &commit_data, &commit_len) != 0) {
+        fprintf(stderr, "error: failed to serialize commit\n");
+        return -1;
+    }
+
+    // 5. Save the serialized text as OBJ_COMMIT
+    if (object_write(OBJ_COMMIT, commit_data, commit_len, commit_id_out) != 0) {
+        fprintf(stderr, "error: failed to write commit object to disk\n");
+        free(commit_data);
+        return -1;
+    }
+    free(commit_data);
+
+    // 6. Move the branch pointer to point to your new commit
+    if (head_update(commit_id_out) != 0) {
+        fprintf(stderr, "error: failed to update HEAD reference\n");
+        return -1;
+    }
+
+    return 0; // Success!
 }
