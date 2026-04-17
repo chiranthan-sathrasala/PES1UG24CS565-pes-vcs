@@ -161,8 +161,33 @@ static int write_tree_level(IndexEntry *entries, int count, int name_offset, Obj
             te->hash = entries[i].hash;
             i++;
         } else {
-            // Directory grouping logic goes here
-            i++; // Temporary increment to avoid infinite loop
+            // It is part of a subdirectory. We need to group all entries with the same prefix.
+            size_t dir_len = slash - rel_path;
+            char dir_name[256];
+            if (dir_len >= sizeof(dir_name)) return -1; // Directory name too long
+            strncpy(dir_name, rel_path, dir_len);
+            dir_name[dir_len] = '\0';
+
+            // Find all entries that belong to this directory
+            int j = i;
+            while (j < count && strncmp(entries[j].path + name_offset, dir_name, dir_len) == 0 &&
+                   entries[j].path[name_offset + dir_len] == '/') {
+                j++;
+            }
+
+            // Recursively write the subtree for this directory
+            ObjectID subtree_id;
+            if (write_tree_level(entries + i, j - i, name_offset + dir_len + 1, &subtree_id) != 0) {
+                return -1; // Error in recursive call
+            }
+
+            // Add the directory entry to the current tree
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = MODE_DIR;
+            strcpy(te->name, dir_name);
+            te->hash = subtree_id;
+
+            i = j; // Move to the next group of entries
         }
     }
     
